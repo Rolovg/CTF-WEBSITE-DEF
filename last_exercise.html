@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+
+<html lang="ca">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="style_last_exercise.css" rel="stylesheet"/>
+<link href="CC_def.jpg" rel="icon" type="image/x-icon"/>
+<title data-key="le_page_title">CTF · Identifica el culpable</title>
+
+<style>
+  
+  :root{
+    --bg:#0b0f14; --panel:#0f1620; --ink:#e6eef7; --muted:#7f8ea3;
+    --accent:#4db6ff; --red:#fe0022; --green:#4dff88; --yellow:#ffd95a;
+    --border:#5b43a6;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgb(12, 80, 183), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(255,0,0,.18), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow-x:hidden;
+  }
+
+  .header{position:relative; padding:28px 16px 16px; text-align:center; overflow:hidden;
+    border-bottom:1px solid rgba(255,255,255,.06)}
+  .tape{position:relative; width:100%; height:60px; display:flex; align-items:center; justify-content:center;
+    background:repeating-linear-gradient(135deg,#FFD700 0 28px,#000 28px 56px); color:black; font-weight:900;
+    letter-spacing:.15em; font-size:1.3rem; text-transform:uppercase; border-top:5px solid #000; border-bottom:5px solid #000;
+    box-shadow:0 5px 15px rgba(0,0,0,.5); overflow:hidden}
+  .tape span{position:relative; z-index:2; padding:0 30px}
+  .tape::after{content:""; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:100%; height:30px; background:#FFD700; opacity:1; z-index:1; box-shadow:0 0 12px rgba(0,0,0,.3)}
+  .siren{position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:.55;
+    background:radial-gradient(250px 140px at 12% 0%, rgba(0,110,255,.20), transparent 60%),
+               radial-gradient(220px 120px at 88% 0%, rgba(255,0,0,.18), transparent 60%);
+    animation:sweep 5s ease-in-out infinite}
+  @keyframes sweep{0%,100%{filter:blur(0)} 50%{filter:blur(2px)}}
+  h1{margin:74px 0 6px; font-size:clamp(22px,3vw,32px); letter-spacing:.04em; text-transform:uppercase}
+  .subtitle{color:var(--muted); font-size:.98rem}
+
+  .container{max-width:1100px; margin:0 auto; padding:18px 16px 40px}
+  .case{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .case-top{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    border-bottom:1px dashed rgba(255,255,255,.10); padding-bottom:10px; margin-bottom:16px}
+  .badge{font-family: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace; color:#a6c8ff;
+    letter-spacing:.08em; font-size:.9rem; opacity:.9}
+  .lives{font:700 .95rem/1 ui-monospace, Menlo, Consolas, monospace; color:#ffd95a}
+  .debug{color:var(--yellow); font-size:.9rem; display:none}
+
+  .accuse{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:14px 0}
+  .accuse input,.accuse button{padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,.12);
+    background:#0f172a; color:#e7f0ff}
+  .accuse input::placeholder{color:#93a4bd}
+  .accuse input{autocomplete:off}
+  .accuse button{cursor:pointer; font-weight:700}
+  .accuse button.primary{background:linear-gradient(180deg,#1b5cff,#093b9c); border-color:rgba(77,182,255,.5)}
+  .accuse .msg{margin-left:auto; font-size:.95rem; color:#ffd95a}
+
+  .grid{display:grid; gap:18px; grid-template-columns:repeat(6,1fr); justify-items:center}
+
+  .card{position:relative; width:100%; max-width:180px; background:var(--panel); border:2px solid rgba(255,255,255,.08);
+    border-radius:14px; overflow:hidden; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, filter .15s ease}
+  .card.disabled{pointer-events:none; filter:grayscale(.6) brightness(.7)}
+
+  .card::before{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(60% 80% at 20% -10%, rgba(0,120,255,.35), transparent 60%),
+               radial-gradient(60% 80% at 80% -10%, rgba(255,0,0,.35), transparent 60%);
+    mix-blend-mode:screen; opacity:0; transform:translateX(-40%); filter:blur(1px)}
+  .card::after{content:""; position:absolute; top:10px; left:12px; width:36px; height:12px; border-radius:3px;
+    background:linear-gradient(90deg,#ff2020 0 50%, #1a66ff 50% 100%); box-shadow:0 0 10px rgba(255,32,32,.9), 0 0 16px rgba(26,102,255,.75); opacity:0}
+  .card:hover{transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,0,0,.35); border-color:#ff2020}
+  .card:hover::before{opacity:1; animation:patrol 1.15s linear infinite}
+  .card:hover::after{opacity:.95; animation:flash .5s steps(2,end) infinite}
+  @keyframes patrol{0%{transform:translateX(-40%)} 50%{transform:translateX(40%)} 100%{transform:translateX(-40%)}}
+  @keyframes flash{0%,100%{filter:brightness(1)} 50%{filter:brightness(1.6)}}
+
+  .card img{display:block; width:100%; height:220px; object-fit:cover; background:#0a0a0a; transition:transform .3s ease}
+  .card:hover img{transform:scale(1.03)}
+  .card .meta{padding:10px 12px; display:flex; align-items:center; justify-content:center; gap:8px}
+  .name{font-weight:600}
+
+  .card.selected,.card.cleared,.card.won{border:4px solid var(--red)!important;
+    box-shadow:0 0 0 3px rgba(254,0,34,.25), 0 10px 24px rgba(0,0,0,.45); transform:translateY(-2px)}
+  .stamp{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-5deg); padding:12px 18px;
+    font-weight:900; letter-spacing:2px; text-transform:uppercase; color:#fff; background:var(--red);
+    border:2px solid #a10017; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.45), inset 0 -2px 0 rgba(0,0,0,.25);
+    display:none; z-index:3}
+  .card.cleared .stamp{display:block}
+
+  .card.won .wasted{display:grid}
+  .wasted{position:absolute; inset:-10px; display:none; place-items:center; z-index:3;
+    background:linear-gradient(100deg, rgba(0,0,0,.18), rgba(0,0,0,.45)); backdrop-filter:blur(2px); overflow:visible}
+  .wasted h3{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(-18deg);
+    width:140%; text-align:center; white-space:nowrap; margin:0; padding:4px 0; font-weight:900; letter-spacing:.12em; color:#ff3b3b;
+    text-shadow:0 3px 0 rgba(0,0,0,.8), 0 0 12px rgba(255,59,59,.35); font-size:clamp(22px,6vw,32px)}
+  .wasted h3::before{content:""; position:absolute; left:0; right:0; top:50%; height:44px; transform:translateY(-50%); background:rgba(0,0,0,.55); border-radius:8px; z-index:-1}
+
+  .badge-ng{position:absolute; top:12px; left:-36px; width:160px; padding:6px 0; text-align:center; font-weight:900; letter-spacing:1px;
+    color:#fff; background:#16a34a; border:2px solid #0b6b2d; border-radius:6px; transform:rotate(-35deg);
+    box-shadow:0 6px 16px rgba(0,0,0,.35), inset 0 -2px 0 rgba(0,0,0,.25); text-transform:uppercase; font-size:.85rem; display:none; z-index:4}
+  .card.not-guilty .badge-ng{display:block}
+
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; place-items:center; z-index:40; padding:20px}
+  .modal.open{display:grid}
+  .modal-card{width:min(920px,96vw); background:#0e141c; border:1px solid rgba(255,255,255,.08);
+    border-radius:16px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,.5)}
+  .modal-img{width:100%; height:auto; display:block; background:#000; max-height:75vh; object-fit:contain}
+  .modal-bar{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 14px; border-top:1px solid rgba(255,255,255,.08)}
+  .btn{background:linear-gradient(180deg,#1e293b,#0f172a); border:1px solid rgba(255,255,255,.12); color:#e7f0ff;
+    padding:8px 12px; margin-left:18px; border-radius:10px; font-weight:600; cursor:pointer; transition:transform .08s, background .15s, border-color .15s}
+  .btn:hover{transform:translateY(-1px); border-color:rgba(77,182,255,.5)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{background:linear-gradient(180deg,#1b5cff,#093b9c)}
+
+  .fired{position:fixed; inset:0; display:none; place-items:center; padding:24px; background:rgba(0,0,0,.8); z-index:60; color:#ddd}
+  .fired.open{display:grid}
+  .paper{width:min(820px,95vw); background:#222; color:#fffef8; border:1px solid #333; border-radius:8px;
+    box-shadow:0 30px 60px rgba(0,0,0,.6); padding:28px 28px 22px; font-family:inherit; position:relative; line-height:1.55; letter-spacing:.02em}
+  .paper::before{content:""; position:absolute; top:5px; right:20px; width:120px; height:120px;
+    background:url('galeria/las_vegas_logo.jpg') no-repeat center/contain; opacity:.70; z-index:0}
+  .paper>*{position:relative; z-index:1}
+  .paper h2{margin:0 0 10px; text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:#fff}
+  .paper small{color:#ccc}
+  .seal{margin-top:14px; padding:10px 14px; background:#c00; color:#fff; border:3px solid #7a0000; font-weight:900;
+    text-transform:uppercase; letter-spacing:.06em; border-radius:8px; display:inline-block; transform:rotate(-6deg);
+    box-shadow:0 6px 18px rgba(0,0,0,.35), inset 0 -2px 0 rgba(0,0,0,.2)}
+  .paper .actions{margin-top:16px; display:flex; gap:10px; justify-content:flex-end}
+  .paper .btn{color:#fff}
+
+  /* Certificat: modal input i visor */
+  .cert-modal{display:none; position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.7); place-items:center; padding:20px}
+  .cert-modal.open{display:grid}
+  .cert-card{background:#0f1620; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:16px; width:min(560px,96vw)}
+  .cert-card h3{margin:0 0 10px}
+  .cert-card .row{display:flex; gap:8px; align-items:center}
+  .cert-card input{flex:1; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:#0b1220; color:#e8f0ff}
+  .cert-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:12px}
+
+  .cert-view{display:none; position:fixed; inset:0; z-index:75; background:rgba(0,0,0,.85); place-items:center; padding:20px}
+  .cert-view.open{display:grid}
+  .cert-view img{max-width:96vw; max-height:94vh; border:4px solid #111; box-shadow:0 20px 50px rgba(0,0,0,.6); background:#fff}
+
+  /* Accions dins del visor del certificat */
+  .cert-actions-bar{
+    position:absolute;
+    top:16px; right:16px;
+    display:flex; gap:10px;
+    z-index:2;
+  }
+</style>
+</head>
+<body>
+<header class="header">
+<div class="tape"><span>POLICE LINE — DO NOT CROSS —</span></div>
+<div class="siren"></div>
+<h1 data-key="le_title">Identifica el culpable</h1>
+<p class="subtitle" data-key="le_subtitle">Encerta quin dels sis sospitosos ha comès el crim.</p>
+</header>
+<div class="container">
+<div class="case">
+<div class="case-top">
+<div class="badge" data-key="le_badge">CASE #082 • CTF Division • Access: Level 4</div>
+<div class="lives"><span data-key="le_lives_label">Vides:</span> <span id="lives">❤❤</span></div>
+<button aria-haspopup="dialog" class="btn" data-key="le_btn_help" id="btnHelp">Instruccions</button><!-- nou botó -->
+<div class="debug" id="debug"></div>
+</div>
+<div class="accuse">
+<input
+  id="idInput"
+  type="text" inputmode="numeric" pattern="\d{3}"
+  minlength="3" maxlength="3"
+  data-ph="le_ph_id"
+  placeholder="ID del directori (3 dígits)"
+/>
+
+<input
+  id="nameInput"
+  type="text" autocomplete="off" autocapitalize="words" spellcheck="false"
+  data-ph="le_ph_name"
+  placeholder="Nom complet del sospitós"
+/>
+
+<button class="primary" data-key="le_btn_accuse" id="accuseBtn">Acusar</button>
+<span class="msg" data-key="le_hint" id="hint">Format: <strong>ID</strong> + <strong>Nom</strong> del mateix registre</span>
+</div>
+<div class="grid" id="grid"></div>
+</div>
+</div>
+<!-- Modal WIN -->
+<div aria-label="Arrested" aria-modal="true" class="modal" id="modal" role="dialog">
+<div class="modal-card">
+<img alt="Sospitós arrestat" class="modal-img" id="modalImg"/>
+<div class="modal-bar">
+<div>
+  <span data-key="le_guilty_label">Culpable:</span>
+  <strong id="modalName"></strong>
+  — 
+  <span data-key="le_arrested" style="color:var(--green)">SOSPITÓS DETINGUT</span>
+  <button class="btn" data-key="le_close" id="btnClose">Tanca</button>
+<button class="btn primary" data-key="le_new_game" id="btnReset">Nova partida</button>
+</div>
+
+
+</div>
+</div>
+</div>
+</div>
+<!-- Modal GAME OVER -->
+<div aria-label="Acomiadament" aria-modal="true" class="fired" id="fired" role="dialog">
+<div class="paper">
+<h2 data-key="le_fire_hdr1">Las Vegas Police Department</h2>
+<h2 data-key="le_fire_text">Certificat d'Acomiadament</h2>
+<p data-key="le_ref_code"><small>Ref. INT-CTF-082 • Unitat COP_CTF</small></p>
+<p data-html="le_suspension_notice">
+  Es comunica que l'agent ha emès <strong>dues acusacions falses</strong> contra persones innocents. En virtut dels protocols d'actuació, queda <strong>suspès</strong> de manera immediata a l'espera de resolució.
+</p>
+
+<p class="seal" data-key="le_fire_seal">ACOMIADAT!</p>
+<div class="actions">
+<button class="btn primary" data-key="le_retry" id="btnRetry">Tornar-ho a intentar</button>
+</div>
+</div>
+</div>
+<!-- Modal INSTRUCCIONS (nou) -->
+<div aria-label="Instruccions del joc" aria-modal="true" class="modal" id="helpModal" role="dialog">
+<div class="modal-card" style="max-width:820px">
+<div style="padding:16px 18px">
+
+<h3 data-key="le_help_title" style="margin:0 0 8px">Instruccions</h3>
+
+<p data-html="le_help_intro" style="color:#c7d2fe;margin:.2rem 0 1rem 0">
+  Identifica el culpable amb la <strong>parella correcta</strong> d'<em>ID del directori</em> + <em>Nom complet</em>.
+</p>
+
+<h4 data-key="le_help_correct_h" style="margin:.6rem 0 .3rem 0; color:#22c55e">Forma correcta</h4>
+<ul style="margin:.2rem 0 1rem 1rem;line-height:1.45">
+  <li data-html="le_help_correct_li1">L'<strong>ID (3 dígits)</strong> i el <strong>nom</strong> han de pertànyer al <em>mateix registre</em> del directori ocult.</li>
+  <li data-html="le_help_correct_li2">Ex.: <code>ID=472</code> + <code>"Eva Poliakov"</code> (si realment 472 correspon a Eva).</li>
+</ul>
+
+
+<h4 data-key="le_help_wrong_h" style="margin:.6rem 0 .3rem 0; color:red"> Forma incorrecta</h4>
+<ul style="margin:.2rem 0 1rem 1rem;line-height:1.45">
+  <li data-html="le_help_wrong_li1">Posar un <strong>ID que no pertany</strong> al nom escollit, encara que el nom sigui el del culpable.</li>
+  <li data-html="le_help_wrong_li2">Ex.: <code>ID=315</code> + <code>"Eva Poliakov"</code> si 315 és d'una altra persona.</li>
+</ul>
+
+
+<h4 data-key="le_help_ctx_h" style="margin:.6rem 0 .3rem 0"> Context de la pista codificada</h4>
+<p data-html="le_help_ctx_p" style="margin:.2rem 0 1rem 0;line-height:1.55">
+  <!-- es manté el mateix HTML; la traducció vindrà de lang.js -->
+</p>
+
+<p data-html="le_help_lives" style="margin:.2rem 0 0 0;opacity:.9">
+  Tens <strong>dues vides</strong>. Un sol error resta una vida; dos errors = <em>acomiadament</em>
+</p>
+
+
+
+
+
+</div>
+<div class="modal-bar">
+<div data-key="le_help_footer">Normes del cas INT-CTF-082</div>
+<div><button class="btn" data-key="le_ok" id="helpClose">Entesos</button></div>
+</div>
+</div>
+</div>
+<!-- Certificat: diàleg per demanar el nom -->
+<div aria-label="Generar certificat" aria-modal="true" class="cert-modal" id="certPrompt" role="dialog">
+<div class="cert-card">
+<h3 data-key="le_cert_title">Genera el teu certificat</h3>
+<div class="row">
+<input autocomplete="off" data-ph="le_cert_ph_name" id="playerName" placeholder="Nom i cognoms" type="text"/>
+</div>
+<div class="cert-actions">
+<button class="btn" data-key="le_cancel" id="certCancel">Cancel·la</button>
+<button class="btn primary" data-key="le_generate" id="certOk">Genera</button>
+</div>
+</div>
+</div>
+<!-- Certificat: visor PNG -->
+<div class="cert-view" id="certView">
+<div class="cert-actions-bar">
+<a class="btn primary" data-key="le_download" download="INT-CTF-082_CERT.png" id="certDownload">Descarrega</a>
+<button class="btn" data-key="le_close" id="certClose">Tanca</button>
+</div>
+<img alt="Certificat de reconeixement" id="certImg"/>
+</div>
+<script>
+/* ---------- Validació d'inputs (ID i Nom) ---------- */
+
+// ID: només dígits, màxim 3, i clamp 100..999
+function sanitizeIdInput(v) {
+  // guarda només dígits
+  v = (v || "").replace(/\D/g, "").slice(0, 3);
+  return v;
+}
+
+// Noms: lletres (totes les llengües), espais, apòstrof, punt i guionet
+function sanitizeNameInput(v) {
+  // elimina qualsevol cosa que no sigui lletra Unicode, espai, apòstrof, guió o punt
+  v = (v || "").replace(/[^\p{L} .'-]/gu, "");
+  // normalitza espais
+  v = v.replace(/\s+/g, " ").trimStart();
+  return v;
+}
+
+// Bloqueja canvi amb rodet / tecles especials al camp ID
+function preventWheelAndInvalidKeys(e) {
+  // rodet
+  if (e.type === "wheel") { e.preventDefault(); return; }
+  // bloqueja 'e', '+', '-', '.', ',', etc.
+  if (e.type === "keydown") {
+    if (["e","E","+","-",".",","].includes(e.key)) e.preventDefault();
+  }
+}
+
+const idInput = document.getElementById("idInput");
+const nameInput = document.getElementById("nameInput");
+
+// aplica sanitització live
+idInput.addEventListener("input", () => {
+  const cur = idInput.value;
+  const clean = sanitizeIdInput(cur);
+  if (cur !== clean) idInput.value = clean;
+});
+
+idInput.addEventListener("paste", (e) => {
+  e.preventDefault();
+  const txt = (e.clipboardData || window.clipboardData).getData("text");
+  idInput.value = sanitizeIdInput(txt);
+});
+
+idInput.addEventListener("wheel", preventWheelAndInvalidKeys, { passive:false });
+idInput.addEventListener("keydown", preventWheelAndInvalidKeys);
+
+// nom: en temps real
+nameInput.addEventListener("input", () => {
+  const cur = nameInput.value;
+  const clean = sanitizeNameInput(cur);
+  if (cur !== clean) nameInput.value = clean;
+});
+
+nameInput.addEventListener("paste", (e) => {
+  e.preventDefault();
+  const txt = (e.clipboardData || window.clipboardData).getData("text");
+  nameInput.value = sanitizeNameInput(txt);
+});
+
+
+/* ---------- DADES: 6 sospitosos visibles ---------- */
+const SUSPECTS = [
+  { id: 1, name: "Niko Dimitrovik",   img:"galeria/1_niko_Dimitrovik.png",           arrested:"galeria/1_Niko_Dimitrovik_Arrested.png" },
+  { id: 2, name: "Kojiro Wakabayashi",img:"galeria/2_Kojiro_Wakabayashi.png",        arrested:"galeria/2_1_Kojiro_Wakabayashi_Arrested.png" },
+  { id: 3, name: "Joao Du Santos",    img:"galeria/3_Joao_Du_Santos.png",            arrested:"galeria/3_1_Joao_Du_Santos_Arrested.png" },
+  { id: 4, name: "Eva Poliakov",      img:"galeria/4_Eva_Poliakov.png",              arrested:"galeria/4_1_Eva_Poliakov_Arrested.png" },
+  { id: 5, name: "Clara Bekker",      img:"galeria/5_Clara_Bekker.png",              arrested:"galeria/5_1_Clara_Bekker.png" },
+  { id: 6, name: "David McCloud",     img:"galeria/6_David_McCloud.png",             arrested:"galeria/6_1_David_McCloud_Arrested.png" },
+];
+
+/* ---------- DIRECTORI OCULT ---------- */
+function normalize(s){ return s.normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase(); }
+
+const FIRST = ["Alex","Sam","Chris","Taylor","Jordan","Riley","Casey","Jamie","Morgan","Cameron","Drew","Quinn","Avery","Rowan","Evan","Milan","Noa","Kai","Mika","Remy"];
+const LAST  = ["Stone","Hayes","Carter","Miller","Rivera","Lopez","Turner","Reed","Brooks","Bennett","Cole","Gray","Torres","Cooper","Perry","Murphy","Bailey","Diaz","Price","Jensen"];
+
+function makeUniqueIds(n){
+  const set = new Set();
+  while(set.size < n){ set.add(Math.floor(101 + Math.random()*899)); }
+  return [...set];
+}
+const DIR_SIZE = 100;
+const ids = makeUniqueIds(DIR_SIZE);
+let p = 0;
+const DIRECTORY = SUSPECTS.map(s => ({ name: s.name, dirId: ids[p++] }));
+while (DIRECTORY.length < DIR_SIZE){
+  const name = `${FIRST[Math.floor(Math.random()*FIRST.length)]} ${LAST[Math.floor(Math.random()*LAST.length)]}`;
+  if (DIRECTORY.some(x => normalize(x.name) === normalize(name))) continue;
+  DIRECTORY.push({ name, dirId: ids[p++] });
+}
+const nameToDirId = new Map(DIRECTORY.map(x => [normalize(x.name), x.dirId]));
+const dirIdToName = new Map(DIRECTORY.map(x => [x.dirId, x.name]));
+
+/* ---------- Estat ---------- */
+let culpritIndex = Math.floor(Math.random()*SUSPECTS.length);
+const culprit = SUSPECTS[culpritIndex];
+let lives = 2;
+let gameOver = false;
+
+/* ---------- DOM ---------- */
+const grid = document.getElementById("grid");
+const debugEl = document.getElementById("debug");
+const modal = document.getElementById("modal");
+const modalImg = document.getElementById("modalImg");
+const modalName = document.getElementById("modalName");
+const btnClose = document.getElementById("btnClose");
+const btnReset = document.getElementById("btnReset");
+const fired = document.getElementById("fired");
+const btnRetry = document.getElementById("btnRetry");
+const livesEl = document.getElementById("lives");
+
+const accuseBtn = document.getElementById("accuseBtn");
+const hint = document.getElementById("hint");
+
+/* Certificat DOM */
+const certPrompt = document.getElementById("certPrompt");
+const certOk = document.getElementById("certOk");
+const certCancel = document.getElementById("certCancel");
+const playerName = document.getElementById("playerName");
+const certView = document.getElementById("certView");
+const certImg = document.getElementById("certImg");
+const certClose = document.getElementById("certClose");
+const certDownload = document.getElementById("certDownload");
+
+/* Instruccions DOM (nou) */
+const helpModal = document.getElementById("helpModal");
+const btnHelp   = document.getElementById("btnHelp");
+const helpClose = document.getElementById("helpClose");
+
+function updateLivesUI(){
+  livesEl.textContent = lives === 2 ? "❤❤" : (lives === 1 ? "❤♡" : "♡♡");
+}
+function disableAllCards(){ document.querySelectorAll(".card").forEach(c=> c.classList.add("disabled")); }
+function clearInputs(){ idInput.value=""; nameInput.value=""; /* no esborrem hint per la nota */ }
+
+window.addEventListener("pageshow", clearInputs);
+document.addEventListener("DOMContentLoaded", clearInputs);
+
+function renderGrid(){
+  grid.innerHTML = "";
+  SUSPECTS.forEach((s, idx)=>{
+    const card = document.createElement("article");
+    card.className = "card";
+    card.dataset.idx = idx;
+    card.innerHTML = `
+      <div class="wasted"><h3>WASTED</h3></div>
+      <div class="badge-ng">Not Guilty</div>
+      <img src="${s.img}" alt="${s.name}">
+      <div class="meta"><div class="name">${s.name}</div></div>
+      <div class="stamp">WRONG!</div>
+    `;
+    grid.appendChild(card);
+  });
+  updateLivesUI();
+
+}
+const toBase64 = (str)=> btoa(unescape(encodeURIComponent(str)));
+
+function updateDebug(){
+  const secretId = nameToDirId.get(normalize(culprit.name));
+  const payload = `ID=${secretId} | culprit=${culprit.name}`;
+  console.log("%c[DEBUG] (base64) String :", "color:#7fbfff", toBase64(payload));
+}
+
+  updateDebug();
+
+/* ---------- ACUSAR ---------- */
+function markWrong(idx){
+  const card = document.querySelectorAll(".card")[idx];
+  if (!card) return;
+  document.querySelectorAll(".card").forEach(c=>c.classList.remove("selected"));
+  card.classList.add("selected");
+  if (!card.classList.contains("cleared")){
+    card.classList.add("cleared");
+    card.animate(
+      [
+        { transform:"translateY(0) rotate(0)", filter:"brightness(1)" },
+        { transform:"translateY(-2px) rotate(-1deg)", filter:"brightness(1.05)" },
+        { transform:"translateY(0) rotate(0)", filter:"brightness(1)" }
+      ],
+      { duration:180, iterations:2 }
+    );
+  }
+}
+function loseLife(){
+  lives--;
+  updateLivesUI();
+  if (lives <= 0){
+    gameOver = true;
+    disableAllCards();
+    openFired();
+  }
+}
+
+function accuse(){
+  if (gameOver) return;
+
+  // Re-sanititza per si de cas
+  idInput.value = sanitizeIdInput(idInput.value);
+  nameInput.value = sanitizeNameInput(nameInput.value);
+
+  const idStr = idInput.value;
+  const id = idStr ? parseInt(idStr, 10) : NaN;
+
+  // Força 3 xifres (100–999)
+  if (!Number.isInteger(id) || id < 100 || id > 999) {
+    hint.textContent = t("le_err_invalid_input") || "ID invàlid (calen 3 dígits).";
+    return;
+  }
+
+  const rawName = nameInput.value;
+  if (!rawName.trim()) {
+    hint.textContent = t("le_err_invalid_input") || "Nom invàlid.";
+    return;
+  }
+
+  // 👇 Aquí definim nm abans de fer-lo servir
+  const nm = normalize(rawName);
+  const nameIdxInSuspects = SUSPECTS.findIndex(s => normalize(s.name) === nm);
+  const dirIdValid = dirIdToName.has(id);
+
+  if (nameIdxInSuspects !== -1){
+    const expectedId = nameToDirId.get(nm);
+    if (dirIdValid && id === expectedId){
+      if (nameIdxInSuspects === culpritIndex){
+        const card = document.querySelectorAll(".card")[nameIdxInSuspects];
+        if (card) card.classList.add("won","selected");
+        gameOver = true;
+        document.querySelectorAll(".card").forEach((c,i)=>{
+          if(i !== culpritIndex) c.classList.add("not-guilty");
+        });
+        disableAllCards();
+        modalImg.src = SUSPECTS[nameIdxInSuspects].arrested;
+        modalName.textContent = SUSPECTS[nameIdxInSuspects].name;
+        openModal();
+        return;
+      } else {
+        markWrong(nameIdxInSuspects);
+        hint.textContent = t("le_err_not_culprit");
+        loseLife();
+        return;
+      }
+    } else {
+      markWrong(nameIdxInSuspects);
+      hint.textContent = t("le_err_mismatch");
+      loseLife();
+      return;
+    }
+  } else {
+    if (!rawName.trim() && !dirIdValid){
+      hint.textContent = t("le_err_invalid_input");
+      return;
+    }
+    hint.textContent = t("le_err_incorrect_check");
+    loseLife();
+    return;
+  }
+}
+
+
+/* --- Modals --- */
+function openModal(){ modal.classList.add("open"); }
+function closeModal(){ modal.classList.remove("open"); }
+function openFired(){ fired.classList.add("open"); }
+
+// Instruccions (nou)
+function openHelp(){ helpModal.classList.add("open"); }
+function closeHelp(){ helpModal.classList.remove("open"); }
+
+btnClose.addEventListener("click", ()=>{
+  closeModal();
+  playerName.value = "";
+  certPrompt.classList.add("open");
+});
+btnReset.addEventListener("click", ()=>location.reload());
+btnRetry.addEventListener("click", ()=>location.reload());
+modal.addEventListener("click", e=>{ if(e.target === modal) closeModal(); });
+
+document.getElementById("accuseBtn").addEventListener("click", accuse);
+
+// Obre/Tanca instruccions
+document.getElementById("btnHelp").addEventListener("click", openHelp);
+document.getElementById("helpClose").addEventListener("click", closeHelp);
+helpModal.addEventListener("click", e => { if(e.target === helpModal) closeHelp(); });
+document.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && helpModal.classList.contains("open")) closeHelp(); });
+
+/* --- Certificat --- */
+certCancel.addEventListener("click", ()=> certPrompt.classList.remove("open"));
+
+function filenameFromName(fullName){
+  const base = fullName.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const safe = base.replace(/[^a-zA-Z0-9 _-]/g, "").trim();
+  const underscored = safe.replace(/\s+/g, "_").replace(/_+/g, "_");
+  return underscored || "usuari";
+}
+
+certOk.addEventListener("click", async ()=>{
+  const nm = playerName.value.trim();
+  if(!nm){ playerName.focus(); return; }
+  certPrompt.classList.remove("open");
+  const url = await generateCertificatePNG(nm);
+  certImg.src = url;
+  certDownload.href = url;
+  const fname = filenameFromName(nm);
+  certDownload.setAttribute("download", `lvmpd_certificat_${fname}.png`);
+  certView.classList.add("open");
+});
+
+certClose.addEventListener("click", ()=> certView.classList.remove("open"));
+
+/* --- Certificat (canvas) – versió refinada sense barra lateral --- */
+async function generateCertificatePNG(fullName){
+  const W = 1200, H = 700;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+
+  // Fons
+  const gBg = ctx.createLinearGradient(0,0,0,H);
+  gBg.addColorStop(0,"#0a1426");
+  gBg.addColorStop(1,"#0e223a");
+  ctx.fillStyle = gBg; ctx.fillRect(0,0,W,H);
+
+  const gV = ctx.createRadialGradient(W/2,H/2,80, W/2,H/2,650);
+  gV.addColorStop(0,"rgba(255,255,255,0.08)");
+  gV.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle = gV; ctx.fillRect(0,0,W,H);
+
+  // Marc
+  ctx.lineWidth = 14; ctx.strokeStyle = "#bfa64d"; ctx.strokeRect(26,26,W-52,H-52);
+  ctx.lineWidth = 4; ctx.strokeStyle = "#2b3448"; ctx.strokeRect(46,46,W-92,H-92);
+
+  // Capçalera
+  const headerH = 68;
+  const gHead = ctx.createLinearGradient(60,90,W-60,90);
+  gHead.addColorStop(0,"#0e1a30"); gHead.addColorStop(.5,"#142a52"); gHead.addColorStop(1,"#0e1a30");
+  ctx.fillStyle = gHead; ctx.fillRect(70,80,W-140,headerH);
+  ctx.strokeStyle = "#e8d28a"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(72,80); ctx.lineTo(W-72,80); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(72,80+headerH); ctx.lineTo(W-72,80+headerH); ctx.stroke();
+
+  ctx.fillStyle = "#f4e6a8"; ctx.font = "700 22px system-ui, Segoe UI, Arial"; ctx.textAlign = "center";
+  ctx.fillText("LAS VEGAS METROPOLITAN POLICE DEPARTMENT • CTF DIVISION", W/2, 122);
+
+  // Logo
+  const logo = await loadImage(LOGO_SVG);
+  ctx.save(); ctx.globalAlpha = 0.12; const wmSize = 520;
+  ctx.drawImage(logo, (W-wmSize)/2, 180, wmSize, wmSize); ctx.restore();
+
+  // Badge
+  const badgeSize = 150, bx = W-70-badgeSize, by = H-70-badgeSize;
+  ctx.save(); ctx.beginPath(); ctx.arc(bx+badgeSize/2, by+badgeSize/2, badgeSize/2, 0, Math.PI*2); ctx.clip();
+  ctx.drawImage(logo, bx, by, badgeSize, badgeSize); ctx.restore();
+  ctx.beginPath(); ctx.arc(bx+badgeSize/2, by+badgeSize/2, badgeSize/2-2, 0, Math.PI*2);
+  ctx.lineWidth = 5; ctx.strokeStyle = "#a10017"; ctx.stroke();
+
+  // Títol
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(0,0,0,.55)";
+  ctx.font = "900 94px system-ui, Segoe UI, Arial";
+
+  ctx.fillText("SERTIFIKAT COP_CTF", W/2+2, 270+2);
+  ctx.fillStyle = "#eaf2ff"; ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2;
+  ctx.fillText("SERTIFIKAT COP_CTF", W/2, 270); ctx.strokeText("SERTIFIKAT COP_CTF", W/2, 270);
+
+  // Takketekst
+  ctx.font = "25px system-ui, Segoe UI, Arial"; ctx.fillStyle = "#d8e3f7";
+  const msg = "Las Vegas Metropolitan Police Department takker for ditt verdifulle samarbeid "+
+              "i løsningen av saken INT-CTF-082. Din dyktighet og besluttsomhet har vært "+
+              "avgjørende for å identifisere og pågripe den skyldige. Takk for din tjeneste for sannhet og rettferdighet.";
+  drawParagraph(ctx, msg, W/2, 340, 780, 30, 14);
+
+
+  // Nom
+  ctx.fillStyle = "#fff"; ctx.font = "900 56px system-ui, Segoe UI, Arial";
+  ctx.fillText(fullName, W/2, 560);
+  ctx.beginPath(); ctx.moveTo(W/2-260, 575); ctx.lineTo(W/2+260, 575);
+  ctx.lineWidth = 3; ctx.strokeStyle = "#e8d28a"; ctx.stroke();
+
+  // Signatures (línies)
+  ctx.font = "16px system-ui, Segoe UI, Arial"; ctx.fillStyle = "#e6dcae"; ctx.textAlign = "center";
+  ctx.beginPath(); ctx.moveTo(140, H-140); ctx.lineTo(420, H-140); ctx.strokeStyle="#c8b46d"; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W-420, H-140); ctx.lineTo(W-140, H-140); ctx.stroke();
+
+  // Peu
+  ctx.textAlign="center"; ctx.fillStyle = "#ffb3b3"; ctx.font = "bold 20px system-ui, Segoe UI, Arial";
+  ctx.fillText("Las Vegas Police Department • COP_CTF", W/2, H-50);
+
+  // Número de sèrie
+  ctx.textAlign="right"; ctx.font = "bold 14px ui-monospace, Menlo, Consolas"; ctx.fillStyle = "#9fb8ff";
+  const sn = "SN-082-" + (Date.now().toString().slice(-8)); ctx.fillText(sn, W-70, 70);
+
+  return c.toDataURL("image/png");
+}
+
+/* Helper: carregar imatge com a promesa */
+// Logo de mostra (SVG Data URL — sense CORS)
+const LOGO_SVG =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+      <defs>
+        <radialGradient id="g" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stop-color="#ffd95a"/>
+          <stop offset="100%" stop-color="#c49a00"/>
+        </radialGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="#0b0b0b"/>
+      <circle cx="512" cy="512" r="420" fill="url(#g)" stroke="#7a0000" stroke-width="20"/>
+      <circle cx="512" cy="512" r="330" fill="#001b3a" stroke="#a10017" stroke-width="10"/>
+      <text x="50%" y="44%" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial" font-weight="900" font-size="160">LVPD</text>
+      <text x="50%" y="58%" text-anchor="middle" fill="#9fd3ff" font-family="Segoe UI, Arial" font-weight="700" font-size="54">CTF DIVISION</text>
+      <text x="50%" y="72%" text-anchor="middle" fill="#fff" font-family="Segoe UI, Arial" font-weight="700" font-size="42">INT-CTF-082</text>
+    </svg>
+  `);
+
+function loadImage(src){
+  return new Promise((res, rej)=>{
+    const im = new Image();
+    if (/^https?:/i.test(src)) im.crossOrigin = "anonymous";
+    im.onload = ()=>res(im);
+    im.onerror = rej;
+    im.src = src;
+  });
+}
+/* Helper: paràgraf centrat amb ample màxim */
+function drawParagraph(ctx, text, cx, top, maxWidth, lineHeight){
+  const words = text.split(" ");
+  let line = "", y = top;
+  ctx.textAlign = "center";
+  for (let w of words){
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > maxWidth){
+      ctx.fillText(line, cx, y);
+      line = w; y += lineHeight;
+    } else line = test;
+  }
+  if (line) ctx.fillText(line, cx, y);
+}
+
+/* Inicialitza */
+renderGrid();
+document.getElementById("accuseBtn").addEventListener("click", accuse);
+// console.log pista ja es mostra a updateDebug()
+
+</script>
+<div aria-hidden="true" id="modal-root"></div>
+<button class="lang-switch" id="lang-toggle">Català / Norsk</button>
+<script src="lang.js"></script>
+
+
+<script>
+function applyTranslations(lang){
+  document.querySelectorAll("[data-key], [data-html]").forEach(el=>{
+    const key = el.getAttribute("data-key") || el.getAttribute("data-html");
+    const val = translations[lang] && translations[lang][key];
+    if (!val) return;
+    if (el.hasAttribute("data-html")) el.innerHTML = val;
+    else el.textContent = val;
+  });
+}
+window.applyTranslations = applyTranslations; // 👈 fa visible la funció per a la resta de codi
+
+
+
+(function(){
+  const LS_KEY = 'CTF_LANG';
+
+  function applyPlaceholders(lang){
+    document.querySelectorAll("[data-ph]").forEach(function(el){
+      const k = el.getAttribute("data-ph");
+      if (window.translations && translations[lang] && translations[lang][k]) {
+        el.setAttribute("placeholder", translations[lang][k]);
+      }
+    });
+  }
+
+  // Funció global de traducció
+  window.t = function(key){
+    const lang = document.documentElement.lang || 'ca';
+    return (window.translations && translations[lang] && translations[lang][key]) || '';
+  };
+
+  // Funció que aplica un idioma concret
+  window.setLang = function(lang){
+    document.documentElement.lang = lang;
+    if (typeof window.applyTranslations === 'function') window.applyTranslations(lang);
+    applyPlaceholders(lang);
+    try { localStorage.setItem(LS_KEY, lang); } catch(e){}
+    // Actualitza el text del botó
+    const btn = document.getElementById('lang-toggle');
+    if (btn) btn.textContent = (lang === 'no') ? 'Norsk / Català' : 'Català / Norsk';
+  };
+
+  // Idioma inicial: el guardat a localStorage, sinó el de l'HTML
+  const saved = (()=>{ try { return localStorage.getItem(LS_KEY); } catch(e){ return null; }})();
+  const initial = saved || document.documentElement.lang || 'ca';
+  setLang(initial);
+
+  // Canvi d'idioma amb el botó
+  const btn = document.getElementById('lang-toggle');
+  if (btn){
+    btn.addEventListener('click', function(){
+      const next = (document.documentElement.lang === 'ca') ? 'no' : 'ca';
+      setLang(next);
+    });
+  }
+})();
+    </script>
+</body>
+</html>
